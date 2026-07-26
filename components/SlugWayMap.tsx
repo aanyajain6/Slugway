@@ -47,6 +47,8 @@ export default function SlugWayMap() {
   const [start, setStart] = useState(0);
   const [end, setEnd] = useState(1);
   const [reportedPoints, setReportedPoints] = useState<{ name: string; lat: number; lng: number }[]>([]);
+  const [savedRoutes, setSavedRoutes] = useState<{ name: string; startIdx: number; endIdx: number }[]>([]);
+  const [showSaved, setShowSaved] = useState(false);
   const [status, setStatus] = useState(
     "Drop accessibility pins on the map, then get an AI-reasoned route. Pins are shared with everyone using SlugWay."
   );
@@ -66,6 +68,15 @@ export default function SlugWayMap() {
       mapRef.current.getContainer().style.cursor = dropMode ? "crosshair" : "";
     }
   }, [dropMode]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("slugway_saved_routes");
+      setSavedRoutes(raw ? JSON.parse(raw) : []);
+    } catch {
+      setSavedRoutes([]);
+    }
+  }, []);
 
   useEffect(() => {
     let map: LeafletMap;
@@ -284,6 +295,14 @@ export default function SlugWayMap() {
     }
   }
 
+  function saveRoute() {
+    const name = prompt("Name this route:");
+    if (!name) return;
+    const updated = [...savedRoutes, { name, startIdx: start, endIdx: end }];
+    setSavedRoutes(updated);
+    localStorage.setItem("slugway_saved_routes", JSON.stringify(updated));
+  }
+
 const NAVY = "#003C6C";
 const GOLD = "#F1B82D";
 
@@ -396,117 +415,189 @@ const GOLD = "#F1B82D";
           }}
         >
           <div style={{ width: 40, height: 4, background: "#e2e8f0", borderRadius: 99, margin: "0 auto 14px" }} />
-          <h3 style={{ margin: "0 0 14px", fontFamily: "'Bodoni Moda', serif", fontSize: 22, fontWeight: 700, color: "#1a1a1a" }}>
-            Find an accessible route
-          </h3>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              background: "#f1f5f9",
-              borderRadius: 12,
-              padding: "12px 14px",
-              marginBottom: 10,
-            }}
-          >
-            <span style={{ color: NAVY, fontSize: 15 }}>◎</span>
-            <select
-              value={start}
-              onChange={(e) => setStart(Number(e.target.value))}
-              style={{ flex: 1, border: "none", background: "transparent", fontSize: 15, fontWeight: 500, outline: "none" }}
-            >
-              {LANDMARKS.map((l, i) => (
-                <option key={l.name} value={i}>
-                  {l.name}
-                </option>
-              ))}
-              {reportedPoints.map((p, i) => (
-                <option key={`start-rp-${i}`} value={LANDMARKS.length + i}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {showSaved ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <h3 style={{ margin: 0, fontFamily: "'Bodoni Moda', serif", fontSize: 22, fontWeight: 700, color: "#1a1a1a" }}>
+                  Saved Routes
+                </h3>
+                <button
+                  onClick={() => setShowSaved(false)}
+                  style={{ padding: "8px 14px", borderRadius: 12, border: "none", background: "#e2e8f0", color: "#475569", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+                >
+                  ← Back
+                </button>
+              </div>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              background: "#f1f5f9",
-              borderRadius: 12,
-              padding: "12px 14px",
-              marginBottom: 14,
-            }}
-          >
-            <span style={{ color: "#dc2626", fontSize: 15 }}>📍</span>
-            <select
-              value={end}
-              onChange={(e) => setEnd(Number(e.target.value))}
-              style={{ flex: 1, border: "none", background: "transparent", fontSize: 15, fontWeight: 500, outline: "none" }}
-            >
-              {LANDMARKS.map((l, i) => (
-                <option key={l.name} value={i}>
-                  {l.name}
-                </option>
-              ))}
-              {reportedPoints.map((p, i) => (
-                <option key={`end-rp-${i}`} value={LANDMARKS.length + i}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
+              {savedRoutes.length === 0 ? (
+                <div style={{ fontSize: 13.5, color: "#64748b", padding: "20px 0", textAlign: "center" }}>
+                  No saved routes yet. Save one from the routing screen.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 280, overflowY: "auto" }}>
+                  {savedRoutes.map((r, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setStart(r.startIdx);
+                        setEnd(r.endIdx);
+                        setShowSaved(false);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        textAlign: "left",
+                        background: "#f1f5f9",
+                        borderRadius: 12,
+                        padding: "12px 14px",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: 14.5,
+                        fontWeight: 500,
+                        color: "#1a1a1a",
+                      }}
+                    >
+                      🚶 {r.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <h3 style={{ margin: "0 0 14px", fontFamily: "'Bodoni Moda', serif", fontSize: 22, fontWeight: 700, color: "#1a1a1a" }}>
+                Find an accessible route
+              </h3>
 
-          <div style={{ display: "flex", gap: 10 }}>
-            <button
-              onClick={getRoute}
-              disabled={loading}
-              style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                padding: 14,
-                border: "none",
-                borderRadius: 12,
-                background: NAVY,
-                color: "white",
-                fontWeight: 700,
-                fontSize: 14.5,
-                cursor: "pointer",
-              }}
-            >
-              ✨ {loading ? "Thinking..." : "Get Route with Gemma 4"}
-            </button>
-            <button
-              onClick={clearPins}
-              style={{ padding: "14px 18px", borderRadius: 12, border: "none", background: "#e2e8f0", color: "#475569", fontWeight: 600, fontSize: 14.5, cursor: "pointer" }}
-            >
-              Clear
-            </button>
-          </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  background: "#f1f5f9",
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                  marginBottom: 10,
+                }}
+              >
+                <span style={{ color: NAVY, fontSize: 15 }}>◎</span>
+                <select
+                  value={start}
+                  onChange={(e) => setStart(Number(e.target.value))}
+                  style={{ flex: 1, border: "none", background: "transparent", fontSize: 15, fontWeight: 500, outline: "none" }}
+                >
+                  {LANDMARKS.map((l, i) => (
+                    <option key={l.name} value={i}>
+                      {l.name}
+                    </option>
+                  ))}
+                  {reportedPoints.map((p, i) => (
+                    <option key={`start-rp-${i}`} value={LANDMARKS.length + i}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <div
-            style={{
-              marginTop: 14,
-              display: "flex",
-              gap: 10,
-              alignItems: "flex-start",
-              background: "#fffbeb",
-              borderLeft: `4px solid ${GOLD}`,
-              borderRadius: "0 10px 10px 0",
-              padding: "12px 14px",
-              maxHeight: 140,
-              overflowY: "auto",
-            }}
-          >
-            <span style={{ color: GOLD, fontSize: 15, flexShrink: 0 }}>●</span>
-            <span style={{ fontSize: 13.5, color: "#334155", lineHeight: 1.5 }}>{status}</span>
-          </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  background: "#f1f5f9",
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                  marginBottom: 14,
+                }}
+              >
+                <span style={{ color: "#dc2626", fontSize: 15 }}>📍</span>
+                <select
+                  value={end}
+                  onChange={(e) => setEnd(Number(e.target.value))}
+                  style={{ flex: 1, border: "none", background: "transparent", fontSize: 15, fontWeight: 500, outline: "none" }}
+                >
+                  {LANDMARKS.map((l, i) => (
+                    <option key={l.name} value={i}>
+                      {l.name}
+                    </option>
+                  ))}
+                  {reportedPoints.map((p, i) => (
+                    <option key={`end-rp-${i}`} value={LANDMARKS.length + i}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  onClick={getRoute}
+                  disabled={loading}
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    padding: 14,
+                    border: "none",
+                    borderRadius: 12,
+                    background: NAVY,
+                    color: "white",
+                    fontWeight: 700,
+                    fontSize: 14.5,
+                    cursor: "pointer",
+                  }}
+                >
+                  ✨ {loading ? "Thinking..." : "Get Route with Gemma 4"}
+                </button>
+                <button
+                  onClick={clearPins}
+                  style={{ padding: "14px 18px", borderRadius: 12, border: "none", background: "#e2e8f0", color: "#475569", fontWeight: 600, fontSize: 14.5, cursor: "pointer" }}
+                >
+                  Clear
+                </button>
+              </div>
+
+              <button
+                onClick={saveRoute}
+                style={{
+                  marginTop: 10,
+                  width: "100%",
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: "#f1f5f9",
+                  color: NAVY,
+                  fontWeight: 600,
+                  fontSize: 14,
+                  cursor: "pointer",
+                }}
+              >
+                💾 Save this route
+              </button>
+
+              <div
+                style={{
+                  marginTop: 14,
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "flex-start",
+                  background: "#fffbeb",
+                  borderLeft: `4px solid ${GOLD}`,
+                  borderRadius: "0 10px 10px 0",
+                  padding: "12px 14px",
+                  maxHeight: 140,
+                  overflowY: "auto",
+                }}
+              >
+                <span style={{ color: GOLD, fontSize: 15, flexShrink: 0 }}>●</span>
+                <span style={{ fontSize: 13.5, color: "#334155", lineHeight: 1.5 }}>{status}</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -526,26 +617,35 @@ const GOLD = "#F1B82D";
           { key: "routes", icon: "🚶", label: "Routes" },
           { key: "saved", icon: "🔖", label: "Saved" },
           { key: "profile", icon: "👤", label: "Profile" },
-        ].map((tab) => (
-          <div
-            key={tab.key}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 2,
-              fontSize: 10.5,
-              fontWeight: 600,
-              color: tab.key === "map" ? NAVY : "#94a3b8",
-              background: tab.key === "map" ? "#fffbeb" : "transparent",
-              padding: "6px 16px",
-              borderRadius: 12,
-            }}
-          >
-            <span style={{ fontSize: 17 }}>{tab.icon}</span>
-            {tab.label}
-          </div>
-        ))}
+        ].map((tab) => {
+          const activeTab = showSaved ? "saved" : "map";
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setShowSaved(tab.key === "saved")}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 2,
+                fontSize: 10.5,
+                fontWeight: 600,
+                fontFamily: "inherit",
+                border: "none",
+                outline: "none",
+                cursor: "pointer",
+                color: tab.key === activeTab ? NAVY : "#94a3b8",
+                background: tab.key === activeTab ? "#fffbeb" : "transparent",
+                padding: "6px 16px",
+                borderRadius: 12,
+              }}
+            >
+              <span style={{ fontSize: 17 }}>{tab.icon}</span>
+              {tab.label}
+            </button>
+          );
+        })}
       </nav>
     </div>
   );
