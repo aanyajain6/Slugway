@@ -254,15 +254,28 @@ export default function SlugWayMap() {
       const map = mapRef.current;
       if (map) {
         if (routeLineRef.current) map.removeLayer(routeLineRef.current);
-        const line = L.polyline(
-          [
-            [s.lat, s.lng],
-            [e.lat, e.lng],
-          ],
-          { color: "#2563eb", weight: 4, dashArray: "8 6" }
-        ).addTo(map);
-        routeLineRef.current = line;
-        map.fitBounds(line.getBounds(), { padding: [70, 70] });
+
+        try {
+          const osrmRes = await fetch(
+            `https://router.project-osrm.org/route/v1/foot/${s.lng},${s.lat};${e.lng},${e.lat}?overview=full&geometries=geojson`
+          );
+          const osrmData = await osrmRes.json();
+          const coords = osrmData.routes?.[0]?.geometry?.coordinates;
+
+          if (coords && coords.length > 0) {
+            const latLngs = coords.map((c: number[]) => [c[1], c[0]]);
+            const line = L.polyline(latLngs, { color: "#2563eb", weight: 4 }).addTo(map);
+            routeLineRef.current = line;
+            map.fitBounds(line.getBounds(), { padding: [70, 70] });
+          } else {
+            throw new Error("No route geometry returned");
+          }
+        } catch {
+          // Fallback to a straight line if OSRM is unreachable
+          const line = L.polyline([[s.lat, s.lng], [e.lat, e.lng]], { color: "#2563eb", weight: 4, dashArray: "8 6" }).addTo(map);
+          routeLineRef.current = line;
+          map.fitBounds(line.getBounds(), { padding: [70, 70] });
+        }
       }
     } catch (err: any) {
       setStatus("Error: " + err.message);
