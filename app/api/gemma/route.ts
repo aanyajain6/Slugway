@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const maxDuration = 60;
+
 const GEMMA_MODEL = "gemma-4-26b-a4b-it";
 
 type Pin = { lat: number; lng: number; type: string; label: string };
